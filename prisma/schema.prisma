@@ -1,0 +1,647 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// UTILISATEURS (propriétaires de pharmacie)
+// ========================================
+model Utilisateur {
+  id                 String    @id @default(uuid()) @db.Uuid
+  firebaseUid        String    @unique @db.VarChar(255) @map("firebase_uid")
+  email              String?   @db.VarChar(255)
+  nom                String?   @db.VarChar(255)
+  telephone          String?   @db.VarChar(50)
+  nomProjet          String?   @db.VarChar(255) @map("nom_projet")
+  adresse            String?   @db.VarChar(255)
+  ville              String?   @db.VarChar(100)
+  pays               String?   @db.VarChar(100)
+  role               String    @default("proprietaire") @db.VarChar(50)
+  isProprietaire     Boolean   @default(false) @map("is_proprietaire")
+  projectType        String    @default("PHARMACIE") @db.VarChar(50) @map("project_type")
+  subscriptionStatus String?   @db.VarChar(50) @map("subscription_status")
+  subscriptionType   String?   @db.VarChar(50) @map("subscription_type")
+  subscriptionStart  DateTime? @map("subscription_start")
+  subscriptionEnd    DateTime? @map("subscription_end")
+  actif              Boolean   @default(true)
+  emailVerifie       Boolean   @default(false) @map("email_verifie")
+  essaiFin           DateTime? @map("essai_fin")
+  desactiveLe        DateTime? @map("desactive_le")
+  supprimerApres     DateTime? @map("supprimer_apres")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  dernierLogin       DateTime? @map("dernier_login")
+
+  employes     Employe[] @relation("ProprietaireEmployes")
+  rolesCreated Role[]    @relation("ProprietaireRoles")
+
+  @@map("utilisateurs")
+  @@index([firebaseUid], name: "idx_utilisateurs_firebase_uid")
+  @@index([email], name: "idx_utilisateurs_email")
+  @@index([projectType], name: "idx_utilisateurs_project_type")
+}
+
+// ========================================
+// RÔLES (permissions des employés)
+// ========================================
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  projetUid   String   @db.VarChar(255) @map("projet_uid")
+  nom         String   @db.VarChar(255)
+  description String?  @db.Text
+  actif       Boolean  @default(true)
+  creePar     String?  @db.VarChar(255) @map("cree_par")
+  modifiePar  String?  @db.VarChar(255) @map("modifie_par")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  proprietaire Utilisateur? @relation("ProprietaireRoles", fields: [creePar], references: [firebaseUid])
+  employes     Employe[]
+  permissions  Permission[]
+
+  @@map("roles")
+  @@index([projetUid], name: "idx_roles_projet_uid")
+}
+
+// ========================================
+// EMPLOYÉS
+// ========================================
+model Employe {
+  id          String   @id @default(uuid()) @db.Uuid
+  projetUid   String   @db.VarChar(255) @map("projet_uid")
+  roleId      String?  @db.Uuid @map("role_id")
+  nom         String   @db.VarChar(255)
+  email       String?  @db.VarChar(255)
+  firebaseUid String?  @unique @db.VarChar(255) @map("firebase_uid")
+  actif       Boolean  @default(true)
+  creePar     String?  @db.VarChar(255) @map("cree_par")
+  modifiePar  String?  @db.VarChar(255) @map("modifie_par")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  role         Role?        @relation(fields: [roleId], references: [id])
+  proprietaire Utilisateur? @relation("ProprietaireEmployes", fields: [creePar], references: [firebaseUid])
+
+  @@map("employes")
+  @@index([projetUid], name: "idx_employes_projet_uid")
+  @@index([roleId], name: "idx_employes_role_id")
+}
+
+// ========================================
+// PERMISSIONS
+// ========================================
+model Permission {
+  id        String   @id @default(uuid()) @db.Uuid
+  roleId    String   @db.Uuid @map("role_id")
+  action    String?  @db.VarChar(100)
+  module    String?  @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("permissions")
+  @@index([roleId], name: "idx_permissions_role_id")
+}
+
+// ========================================
+// CATÉGORIES DE PRODUITS
+// ========================================
+model Categorie {
+  id          String   @id @default(uuid()) @db.Uuid
+  projetUid   String   @db.VarChar(255) @map("projet_uid")
+  nom         String   @db.VarChar(255)
+  description String?  @db.Text
+  actif       Boolean  @default(true)
+  creePar     String?  @db.VarChar(255) @map("cree_par")
+  modifiePar  String?  @db.VarChar(255) @map("modifie_par")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  produits Produit[]
+
+  @@map("categories")
+  @@index([projetUid], name: "idx_categories_projet_uid")
+}
+
+// ========================================
+// PRODUITS (catalogue fixe)
+// Type et SousType sont des énumérations fixes (strings)
+// ========================================
+model Produit {
+  id          String   @id @default(uuid()) @db.Uuid
+  projetUid   String   @db.VarChar(255) @map("projet_uid")
+  nom         String   @db.VarChar(255)
+  codeBarre   String?  @db.VarChar(100) @map("code_barre")
+  categorieId String?  @db.Uuid @map("categorie_id")
+  type        String?  @db.VarChar(100) // Pharmaceutique, Parapharmaceutique, etc.
+  sousType    String?  @db.VarChar(100) @map("sous_type") // Paracétamol, Aspirine, etc.
+  description String?  @db.Text
+  actif       Boolean  @default(true)
+  creePar     String?  @db.VarChar(255) @map("cree_par")
+  modifiePar  String?  @db.VarChar(255) @map("modifie_par")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  categorie Categorie? @relation(fields: [categorieId], references: [id])
+  stocks    Stock[]
+
+  @@map("produits")
+  @@unique([projetUid, codeBarre], name: "idx_produits_projet_code_barre")
+  @@index([projetUid], name: "idx_produits_projet_uid")
+  @@index([nom], name: "idx_produits_nom")
+  @@index([categorieId], name: "idx_produits_categorie_id")
+  @@index([type], name: "idx_produits_type")
+}
+
+// ========================================
+// FOURNISSEURS
+// ========================================
+model Fournisseur {
+  id         String   @id @default(uuid()) @db.Uuid
+  projetUid  String   @db.VarChar(255) @map("projet_uid")
+  nom        String   @db.VarChar(255)
+  telephone  String?  @db.VarChar(50)
+  email      String?  @db.VarChar(255)
+  adresse    String?  @db.Text
+  ville      String?  @db.VarChar(100)
+  ice        String?  @db.VarChar(50) // Identifiant Commun de l'Entreprise (Maroc)
+  actif      Boolean  @default(true)
+  creePar    String?  @db.VarChar(255) @map("cree_par")
+  modifiePar String?  @db.VarChar(255) @map("modifie_par")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  stocks    Stock[]
+  commandes Commande[]
+  avoirs    Avoir[]
+
+  @@map("fournisseurs")
+  @@index([projetUid], name: "idx_fournisseurs_projet_uid")
+}
+
+// ========================================
+// STOCK (données variables: prix, quantité, expiration)
+// ========================================
+model Stock {
+  id                 String    @id @default(uuid()) @db.Uuid
+  projetUid          String    @db.VarChar(255) @map("projet_uid")
+  produitId          String    @db.Uuid @map("produit_id")
+  fournisseurId      String?   @db.Uuid @map("fournisseur_id")
+  numeroLot          String?   @db.VarChar(100) @map("numero_lot")
+  prixAchat          Decimal   @db.Decimal(12, 2) @map("prix_achat")
+  prixVente          Decimal   @db.Decimal(12, 2) @map("prix_vente")
+  quantiteDisponible Int       @default(0) @map("quantite_disponible")
+  quantiteReservee   Int       @default(0) @map("quantite_reservee")
+  seuilAlerte        Int       @default(10) @map("seuil_alerte")
+  dateExpiration     DateTime? @map("date_expiration")
+  actif              Boolean   @default(true)
+  creePar            String?   @db.VarChar(255) @map("cree_par")
+  modifiePar         String?   @db.VarChar(255) @map("modifie_par")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  produit     Produit              @relation(fields: [produitId], references: [id])
+  fournisseur Fournisseur?         @relation(fields: [fournisseurId], references: [id])
+  historiques HistoriqueInventaire[]
+  lignesVente LigneVente[]
+
+  @@unique([projetUid, numeroLot], name: "stocks_projet_lot_unique")
+  @@map("stocks")
+  @@index([projetUid], name: "idx_stocks_projet_uid")
+  @@index([produitId], name: "idx_stocks_produit_id")
+  @@index([fournisseurId], name: "idx_stocks_fournisseur_id")
+  @@index([dateExpiration], name: "idx_stocks_date_expiration")
+  @@index([quantiteDisponible], name: "idx_stocks_quantite_disponible")
+}
+
+model HistoriqueInventaire {
+  id               String   @id @default(uuid()) @db.Uuid
+  projetUid        String   @db.VarChar(255) @map("projet_uid")
+  stockId          String   @db.Uuid @map("stock_id")
+  action           String   @db.VarChar(50)
+  ancienneValeur   String?  @db.Text @map("ancienne_valeur")
+  nouvelleValeur   String?  @db.Text @map("nouvelle_valeur")
+  quantite         Int?
+  motif            String?  @db.Text
+  referenceId      String?  @db.Uuid @map("reference_id")
+  utilisateurId    String?  @db.VarChar(255) @map("utilisateur_id")
+  utilisateurNom   String?  @db.VarChar(255) @map("utilisateur_nom")
+  utilisateurEmail String?  @db.VarChar(255) @map("utilisateur_email")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  stock Stock @relation(fields: [stockId], references: [id])
+
+  @@map("historique_inventaire")
+  @@index([projetUid], name: "idx_historique_inventaire_projet_uid")
+  @@index([stockId], name: "idx_historique_inventaire_stock_id")
+  @@index([action], name: "idx_historique_inventaire_action")
+  @@index([createdAt], name: "idx_historique_inventaire_created_at")
+}
+
+// ========================================
+// CLIENTS
+// ========================================
+model Client {
+  id         String   @id @default(uuid()) @db.Uuid
+  projetUid  String   @db.VarChar(255) @map("projet_uid")
+  nom        String   @db.VarChar(255)
+  prenom     String?  @db.VarChar(255)
+  telephone  String?  @db.VarChar(50)
+  email      String?  @db.VarChar(255)
+  adresse    String?  @db.Text
+  ville      String?  @db.VarChar(100)
+  cin        String?  @db.VarChar(50) // Carte d'identité nationale
+  solde      Decimal  @default(0) @db.Decimal(12, 2) // Montant dû par le client
+  credit     Decimal  @default(0) @db.Decimal(12, 2) // Crédit accordé au client
+  actif      Boolean  @default(true)
+  creePar    String?  @db.VarChar(255) @map("cree_par")
+  modifiePar String?  @db.VarChar(255) @map("modifie_par")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  ventes     Vente[]
+  avoirs     Avoir[]
+
+  @@map("clients")
+  @@index([projetUid], name: "idx_clients_projet_uid")
+  @@index([telephone], name: "idx_clients_telephone")
+}
+
+// ========================================
+// VENTES
+// ========================================
+model Vente {
+  id             String   @id @default(uuid()) @db.Uuid
+  projetUid      String   @db.VarChar(255) @map("projet_uid")
+  clientId       String?  @db.Uuid @map("client_id")
+  reference      String   @db.VarChar(100)
+  sousTotal      Decimal  @db.Decimal(12, 2) @map("sous_total")
+  remise         Decimal  @default(0) @db.Decimal(12, 2)
+  total          Decimal  @db.Decimal(12, 2)
+  montantPaye    Decimal  @default(0) @db.Decimal(12, 2) @map("montant_paye")
+  montantDu      Decimal  @default(0) @db.Decimal(12, 2) @map("montant_du")
+  montantSolde   Decimal  @default(0) @db.Decimal(12, 2) @map("montant_solde")
+  montantCredit  Decimal  @default(0) @db.Decimal(12, 2) @map("montant_credit")
+  modePaiement   String?  @db.VarChar(50) @map("mode_paiement")
+  typePaiement   String   @default("espece") @db.VarChar(50) @map("type_paiement")
+  statut         String   @default("en_cours") @db.VarChar(50)
+  note           String?  @db.Text
+  actif          Boolean  @default(true)
+  vendeurId      String?  @db.Uuid @map("vendeur_id")
+  vendeurNom     String?  @db.VarChar(255) @map("vendeur_nom")
+  creePar        String?  @db.VarChar(255) @map("cree_par")
+  modifiePar     String?  @db.VarChar(255) @map("modifie_par")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  client   Client?      @relation(fields: [clientId], references: [id])
+  lignes   LigneVente[]
+  factures Facture[]
+  avoirs   Avoir[]
+
+  @@map("ventes")
+  @@unique([projetUid, reference], name: "idx_ventes_projet_reference")
+  @@index([projetUid], name: "idx_ventes_projet_uid")
+  @@index([clientId], name: "idx_ventes_client_id")
+  @@index([createdAt], name: "idx_ventes_created_at")
+  @@index([statut], name: "idx_ventes_statut")
+  @@index([vendeurId], name: "idx_ventes_vendeur_id")
+}
+
+// ========================================
+// LIGNES DE VENTE (détail des produits vendus)
+// ========================================
+model LigneVente {
+  id       String  @id @default(uuid()) @db.Uuid
+  venteId  String  @db.Uuid @map("vente_id")
+  stockId  String  @db.Uuid @map("stock_id")
+  quantite Int
+  prixUnit Decimal @db.Decimal(12, 2) @map("prix_unitaire")
+  remise   Decimal @default(0) @db.Decimal(12, 2)
+  total    Decimal @db.Decimal(12, 2)
+
+  vente Vente @relation(fields: [venteId], references: [id], onDelete: Cascade)
+  stock Stock @relation(fields: [stockId], references: [id])
+
+  @@map("lignes_vente")
+  @@index([venteId], name: "idx_lignes_vente_vente_id")
+  @@index([stockId], name: "idx_lignes_vente_stock_id")
+}
+
+// ========================================
+// AVOIRS (retours/remboursements clients)
+// ========================================
+model Avoir {
+  id            String    @id @default(uuid()) @db.Uuid
+  projetUid     String    @db.VarChar(255) @map("projet_uid")
+  clientId      String?   @db.Uuid @map("client_id")
+  fournisseurId String?   @db.Uuid @map("fournisseur_id")
+  venteId       String?   @db.Uuid @map("vente_id")
+  commandeId    String?   @db.Uuid @map("commande_id")
+  reference     String    @db.VarChar(100)
+  montant       Decimal   @db.Decimal(12, 2)
+  motif         String?   @db.Text
+  type          String    @db.VarChar(50) // retour_produit, remboursement, credit_commercial, avoir_fournisseur
+  statut        String    @default("en_attente") @db.VarChar(50) // en_attente, valide, utilise, annule
+  dateValidite  DateTime? @map("date_validite")
+  actif         Boolean   @default(true)
+  creePar       String?   @db.VarChar(255) @map("cree_par")
+  modifiePar    String?   @db.VarChar(255) @map("modifie_par")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  client      Client?      @relation(fields: [clientId], references: [id])
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  vente       Vente?       @relation(fields: [venteId], references: [id])
+  commande    Commande?    @relation(fields: [commandeId], references: [id])
+
+  @@map("avoirs")
+  @@unique([projetUid, reference], name: "idx_avoirs_projet_reference")
+  @@index([projetUid], name: "idx_avoirs_projet_uid")
+  @@index([clientId], name: "idx_avoirs_client_id")
+  @@index([fournisseurId], name: "idx_avoirs_fournisseur_id")
+  @@index([venteId], name: "idx_avoirs_vente_id")
+}
+
+// ========================================
+// FACTURES
+// ========================================
+model Facture {
+  id            String   @id @default(uuid()) @db.Uuid
+  projetUid     String   @db.VarChar(255) @map("projet_uid")
+  venteId       String?  @db.Uuid @map("vente_id")
+  numeroFacture String   @db.VarChar(50) @map("numero_facture")
+  reference     String?  @db.VarChar(100)
+  sousTotal     Decimal  @db.Decimal(12, 2) @map("sous_total")
+  tva           Decimal  @default(0) @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(12, 2)
+  statut        String   @default("emise") @db.VarChar(50) // emise, payee, annulee
+  actif         Boolean  @default(true)
+  creePar       String?  @db.VarChar(255) @map("cree_par")
+  modifiePar    String?  @db.VarChar(255) @map("modifie_par")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  vente Vente? @relation(fields: [venteId], references: [id])
+
+  @@map("factures")
+  @@unique([projetUid, numeroFacture], name: "idx_factures_projet_numero")
+  @@index([projetUid], name: "idx_factures_projet_uid")
+  @@index([venteId], name: "idx_factures_vente_id")
+}
+
+// ========================================
+// COMMANDES FOURNISSEURS
+// ========================================
+model Commande {
+  id             String    @id @default(uuid()) @db.Uuid
+  projetUid      String    @db.VarChar(255) @map("projet_uid")
+  fournisseurId  String?   @db.Uuid @map("fournisseur_id")
+  reference      String    @db.VarChar(100)
+  sousTotal      Decimal   @db.Decimal(12, 2) @map("sous_total")
+  fraisLivraison Decimal   @default(0) @db.Decimal(12, 2) @map("frais_livraison")
+  total          Decimal   @db.Decimal(12, 2)
+  statut         String    @default("en_attente") @db.VarChar(50) // en_attente, confirmee, livree, annulee
+  dateLivraison  DateTime? @map("date_livraison")
+  note           String?   @db.Text
+  actif          Boolean   @default(true)
+  creePar        String?   @db.VarChar(255) @map("cree_par")
+  modifiePar     String?   @db.VarChar(255) @map("modifie_par")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  fournisseur Fournisseur?    @relation(fields: [fournisseurId], references: [id])
+  lignes      LigneCommande[]
+  avoirs      Avoir[]
+
+  @@map("commandes")
+  @@unique([projetUid, reference], name: "idx_commandes_projet_reference")
+  @@index([projetUid], name: "idx_commandes_projet_uid")
+  @@index([fournisseurId], name: "idx_commandes_fournisseur_id")
+}
+
+// ========================================
+// LIGNES DE COMMANDE
+// ========================================
+model LigneCommande {
+  id         String  @id @default(uuid()) @db.Uuid
+  commandeId String  @db.Uuid @map("commande_id")
+  produitNom String  @db.VarChar(255) @map("produit_nom")
+  quantite   Int
+  prixUnit   Decimal @db.Decimal(12, 2) @map("prix_unitaire")
+  total      Decimal @db.Decimal(12, 2)
+
+  commande Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+
+  @@map("lignes_commande")
+  @@index([commandeId], name: "idx_lignes_commande_commande_id")
+}
+
+// ========================================
+// JOURNAL D'AUDIT GLOBAL
+// ========================================
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  projetUid   String   @db.VarChar(255) @map("projet_uid")
+  utilisateur String   @db.VarChar(255) // firebaseUid de l'utilisateur
+  action      String   @db.VarChar(100) // create, update, delete, view, export
+  module      String   @db.VarChar(100) // produits, stocks, ventes, clients, etc.
+  entiteId    String?  @db.VarChar(255) @map("entite_id")
+  details     String?  @db.Text // JSON avec les détails de l'action
+  ipAddress   String?  @db.VarChar(50) @map("ip_address")
+  userAgent   String?  @db.Text @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+  @@index([projetUid], name: "idx_audit_logs_projet_uid")
+  @@index([utilisateur], name: "idx_audit_logs_utilisateur")
+  @@index([module], name: "idx_audit_logs_module")
+  @@index([createdAt], name: "idx_audit_logs_created_at")
+}
+
+// ========================================
+// ÉTABLISSEMENTS PARTENAIRES (pharmacies, parapharmacies, etc.)
+// Pour les confrères inter-établissements
+// ========================================
+model Etablissement {
+  id                String   @id @default(uuid()) @db.Uuid
+  projetUid         String   @db.VarChar(255) @map("projet_uid")
+  nom               String   @db.VarChar(255)
+  type              String   @db.VarChar(100)
+  isPrincipal       Boolean  @default(false) @map("is_principal")
+  // Nouveau: lien vers un utilisateur existant dans l'app (si c'est un confrère enregistré)
+  utilisateurLieId  String?  @db.Uuid @map("utilisateur_lie_id")
+  utilisateurLieUid String?  @db.VarChar(255) @map("utilisateur_lie_uid") // Firebase UID du confrère
+  isManuel          Boolean  @default(true) @map("is_manuel") // true = pas dans l'app, false = utilisateur existant
+  telephone         String?  @db.VarChar(50)
+  email             String?  @db.VarChar(255)
+  adresse           String?  @db.Text
+  ville             String?  @db.VarChar(100)
+  responsable       String?  @db.VarChar(255)
+  note              String?  @db.Text
+  actif             Boolean  @default(true)
+  creePar           String?  @db.VarChar(255) @map("cree_par")
+  modifiePar        String?  @db.VarChar(255) @map("modifie_par")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  confreresSortants  Confrere[] @relation("ConfrereSource")
+  confreresEntrants  Confrere[] @relation("ConfrereDestination")
+
+  @@map("etablissements")
+  @@index([projetUid], name: "idx_etablissements_projet_uid")
+  @@index([type], name: "idx_etablissements_type")
+  @@index([isPrincipal], name: "idx_etablissements_is_principal")
+  @@index([utilisateurLieUid], name: "idx_etablissements_utilisateur_lie")
+}
+
+// ========================================
+// CONFRÈRES (échanges inter-établissements)
+// États: en_cours → en_attente_acceptation → accepte/refuse → en_attente_paiement → paiement_confirme → termine
+// ========================================
+model Confrere {
+  id                         String    @id @default(uuid()) @db.Uuid
+  projetUid                  String    @db.VarChar(255) @map("projet_uid")
+  reference                  String    @db.VarChar(100)
+  etablissementSourceId      String?   @db.Uuid @map("etablissement_source_id")
+  etablissementDestinationId String?   @db.Uuid @map("etablissement_destination_id")
+  // Nouveau: UID du destinataire si c'est un utilisateur de l'app
+  destinataireUid            String?   @db.VarChar(255) @map("destinataire_uid")
+  typeConfrere               String    @db.VarChar(50) @map("type_confrere") // sortant, entrant
+  isManuel                   Boolean   @default(true) @map("is_manuel") // true = établissement manuel, false = utilisateur app
+  // Nouveaux statuts pour le flux complet
+  statut                     String    @default("en_cours") @db.VarChar(50) 
+  // en_cours, en_attente_acceptation, accepte, refuse, en_attente_paiement, paiement_confirme, termine, annule
+  dateEnvoi                  DateTime? @map("date_envoi")
+  dateReception              DateTime? @map("date_reception")
+  dateAcceptation            DateTime? @map("date_acceptation")
+  dateRefus                  DateTime? @map("date_refus")
+  datePaiement               DateTime? @map("date_paiement")
+  dateCloture                DateTime? @map("date_cloture")
+  motifRefus                 String?   @db.Text @map("motif_refus")
+  motif                      String?   @db.Text
+  note                       String?   @db.Text
+  // Infos paiement
+  montantDu                  Decimal   @default(0) @db.Decimal(12, 2) @map("montant_du")
+  montantPaye                Decimal   @default(0) @db.Decimal(12, 2) @map("montant_paye")
+  modePaiement               String?   @db.VarChar(50) @map("mode_paiement")
+  notePaiement               String?   @db.Text @map("note_paiement")
+  totalArticles              Int       @default(0) @map("total_articles")
+  totalQuantite              Int       @default(0) @map("total_quantite")
+  valeurEstimee              Decimal   @default(0) @db.Decimal(12, 2) @map("valeur_estimee")
+  actif                      Boolean   @default(true)
+  creePar                    String?   @db.VarChar(255) @map("cree_par")
+  modifiePar                 String?   @db.VarChar(255) @map("modifie_par")
+  validePar                  String?   @db.VarChar(255) @map("valide_par")
+  recuPar                    String?   @db.VarChar(255) @map("recu_par")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+
+  etablissementSource      Etablissement? @relation("ConfrereSource", fields: [etablissementSourceId], references: [id])
+  etablissementDestination Etablissement? @relation("ConfrereDestination", fields: [etablissementDestinationId], references: [id])
+  lignes                   LigneConfrere[]
+
+  @@map("confreres")
+  @@unique([projetUid, reference], name: "idx_confreres_projet_reference")
+  @@index([projetUid], name: "idx_confreres_projet_uid")
+  @@index([statut], name: "idx_confreres_statut")
+  @@index([destinataireUid], name: "idx_confreres_destinataire")
+  @@index([createdAt], name: "idx_confreres_created_at")
+}
+
+// ========================================
+// LIGNES DE CONFRÈRE
+// ========================================
+model LigneConfrere {
+  id             String    @id @default(uuid()) @db.Uuid
+  confrereId     String    @db.Uuid @map("confrere_id")
+  produitNom     String    @db.VarChar(255) @map("produit_nom")
+  produitCode    String?   @db.VarChar(100) @map("produit_code")
+  numeroLot      String?   @db.VarChar(100) @map("numero_lot")
+  quantite       Int
+  prixUnit       Decimal   @db.Decimal(12, 2) @map("prix_unitaire")
+  total          Decimal   @db.Decimal(12, 2)
+  dateExpiration DateTime? @map("date_expiration")
+  note           String?   @db.Text
+
+  confrere Confrere @relation(fields: [confrereId], references: [id], onDelete: Cascade)
+
+  @@map("lignes_confrere")
+  @@index([confrereId], name: "idx_lignes_confrere_confrere_id")
+}
+
+// ========================================
+// HISTORIQUE GÉNÉRAL (audit trail)
+// ========================================
+model HistoriqueGeneral {
+  id            String   @id @default(uuid()) @db.Uuid
+  projetUid     String   @db.VarChar(255) @map("projet_uid")
+  module        String   @db.VarChar(50) // etablissements, transferts, etc.
+  action        String   @db.VarChar(50) // creer, modifier, supprimer, envoyer, recevoir, annuler
+  entiteId      String   @db.VarChar(255) @map("entite_id") // ID de l'établissement ou transfert
+  entiteNom     String?  @db.VarChar(255) @map("entite_nom") // nom ou référence pour affichage
+  description   String   @db.Text
+  donneesAvant  Json?    @map("donnees_avant") // données avant modification
+  donneesApres  Json?    @map("donnees_apres") // données après modification
+  utilisateurId String   @db.VarChar(255) @map("utilisateur_id") // Firebase UID
+  utilisateurEmail String? @db.VarChar(255) @map("utilisateur_email")
+  ipAddress     String?  @db.VarChar(50) @map("ip_address")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("historique_general")
+  @@index([projetUid], name: "idx_historique_general_projet")
+  @@index([module], name: "idx_historique_general_module")
+  @@index([entiteId], name: "idx_historique_general_entite")
+  @@index([createdAt], name: "idx_historique_general_created_at")
+}
+
+// ========================================
+// NOTIFICATIONS
+// Types: stock_bas, stock_expire, credit_rappel, paiement_rappel,
+//        trial_reminder, subscription_reminder, employe_inactif, etc.
+// ========================================
+model Notification {
+  id            String   @id @default(uuid()) @db.Uuid
+  projetUid     String   @db.VarChar(255) @map("projet_uid")
+  type          String   @db.VarChar(100) // stock_bas, stock_expire, credit_rappel, trial_reminder, etc.
+  titre         String   @db.VarChar(255)
+  message       String   @db.Text
+  priorite      String   @default("normale") @db.VarChar(50) // basse, normale, haute, critique
+  module        String?  @db.VarChar(100) // stocks, clients, ventes, etc.
+  entiteId      String?  @db.VarChar(255) @map("entite_id") // ID de l'entité liée
+  entiteNom     String?  @db.VarChar(255) @map("entite_nom")
+  lienAction    String?  @db.VarChar(500) @map("lien_action") // URL d'action
+  metadata      Json?    // données supplémentaires (ex: quantité, seuil, etc.)
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime? @map("expires_at") // date d'expiration de la notif
+
+  lectures NotificationLecture[]
+
+  @@map("notifications")
+  @@index([projetUid], name: "idx_notifications_projet_uid")
+  @@index([type], name: "idx_notifications_type")
+  @@index([createdAt], name: "idx_notifications_created_at")
+  @@index([actif], name: "idx_notifications_actif")
+}
+
+// ========================================
+// LECTURES DE NOTIFICATIONS (par utilisateur)
+// Permet de savoir qui a lu quelle notification
+// ========================================
+model NotificationLecture {
+  id             String   @id @default(uuid()) @db.Uuid
+  notificationId String   @db.Uuid @map("notification_id")
+  utilisateurId  String   @db.VarChar(255) @map("utilisateur_id") // Firebase UID (proprio ou employé)
+  luLe           DateTime @default(now()) @map("lu_le")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, utilisateurId], name: "idx_notification_lecture_unique")
+  @@map("notifications_lectures")
+  @@index([utilisateurId], name: "idx_notifications_lectures_utilisateur")
+}

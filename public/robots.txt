@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /api/
+Disallow: /dashboard/
+Allow: /login
+Allow: /register
+
+Sitemap: https://app.gosmus.com/sitemap.xml
