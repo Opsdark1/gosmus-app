@@ -167,14 +167,13 @@ function SettingsDialog({ onLogout }: { onLogout: () => void }) {
 
   const userId = auth?.user?.id;
 
-  // Polling des notifications - une seule fois au mount puis toutes les 5 minutes
   useEffect(() => {
     if (!userId || notificationsFetchedRef.current) return;
     
     notificationsFetchedRef.current = true;
     fetchNotifications();
     
-    const interval = setInterval(() => fetchNotifications(), 5 * 60 * 1000); // 5 minutes
+    const interval = setInterval(() => fetchNotifications(), 30000);
     return () => {
       clearInterval(interval);
       notificationsFetchedRef.current = false;
@@ -498,7 +497,11 @@ function SettingsDialog({ onLogout }: { onLogout: () => void }) {
                         {notif.type === "credit_rappel" && <Receipt className="h-4 w-4" />}
                         {notif.type === "trial_reminder" && <Bell className="h-4 w-4" />}
                         {notif.type === "subscription_reminder" && <Bell className="h-4 w-4" />}
-                        {!["stock_bas", "stock_expire", "stock_expire_bientot", "credit_rappel", "trial_reminder", "subscription_reminder"].includes(notif.type) && (
+                        {notif.type === "echange_recu" && <ArrowLeftRight className="h-4 w-4" />}
+                        {notif.type === "contre_offre_recue" && <ArrowLeftRight className="h-4 w-4" />}
+                        {notif.type === "echange_termine" && <Check className="h-4 w-4" />}
+                        {notif.type === "echange_refuse" && <AlertTriangle className="h-4 w-4" />}
+                        {!["stock_bas", "stock_expire", "stock_expire_bientot", "credit_rappel", "trial_reminder", "subscription_reminder", "echange_recu", "contre_offre_recue", "echange_termine", "echange_refuse"].includes(notif.type) && (
                           <Bell className="h-4 w-4" />
                         )}
                       </div>

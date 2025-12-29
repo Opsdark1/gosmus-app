@@ -50,6 +50,12 @@ import {
   Truck,
   Settings,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -556,9 +562,16 @@ export default function HistoriqueInventairePage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <Button variant="ghost" size="sm" onClick={() => openDetailDialog(h)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="sm" onClick={() => openDetailDialog(h)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Voir les détails</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </td>
                         </tr>
                       );

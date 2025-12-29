@@ -35,6 +35,12 @@ import {
   Wallet,
   FileText,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -481,17 +487,24 @@ export default function TicketsPage() {
                         </p>
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openTicket(vente);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTicket(vente);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Voir le ticket</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   );
                 })}

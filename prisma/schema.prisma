@@ -501,7 +501,7 @@ model Etablissement {
 
 // ========================================
 // CONFRÈRES (échanges inter-établissements)
-// États: en_cours → en_attente_acceptation → accepte/refuse → en_attente_paiement → paiement_confirme → termine
+// Flux: création → en_attente_acceptation → en_attente_validation → termine
 // ========================================
 model Confrere {
   id                         String    @id @default(uuid()) @db.Uuid
@@ -509,23 +509,21 @@ model Confrere {
   reference                  String    @db.VarChar(100)
   etablissementSourceId      String?   @db.Uuid @map("etablissement_source_id")
   etablissementDestinationId String?   @db.Uuid @map("etablissement_destination_id")
-  // Nouveau: UID du destinataire si c'est un utilisateur de l'app
   destinataireUid            String?   @db.VarChar(255) @map("destinataire_uid")
-  typeConfrere               String    @db.VarChar(50) @map("type_confrere") // sortant, entrant
-  isManuel                   Boolean   @default(true) @map("is_manuel") // true = établissement manuel, false = utilisateur app
-  // Nouveaux statuts pour le flux complet
-  statut                     String    @default("en_cours") @db.VarChar(50) 
-  // en_cours, en_attente_acceptation, accepte, refuse, en_attente_paiement, paiement_confirme, termine, annule
+  typeConfrere               String    @db.VarChar(50) @map("type_confrere")
+  isManuel                   Boolean   @default(true) @map("is_manuel")
+  statut                     String    @default("en_cours") @db.VarChar(50)
   dateEnvoi                  DateTime? @map("date_envoi")
   dateReception              DateTime? @map("date_reception")
   dateAcceptation            DateTime? @map("date_acceptation")
   dateRefus                  DateTime? @map("date_refus")
   datePaiement               DateTime? @map("date_paiement")
   dateCloture                DateTime? @map("date_cloture")
+  dateContreOffre            DateTime? @map("date_contre_offre")
+  dateValidation             DateTime? @map("date_validation")
   motifRefus                 String?   @db.Text @map("motif_refus")
   motif                      String?   @db.Text
   note                       String?   @db.Text
-  // Infos paiement
   montantDu                  Decimal   @default(0) @db.Decimal(12, 2) @map("montant_du")
   montantPaye                Decimal   @default(0) @db.Decimal(12, 2) @map("montant_paye")
   modePaiement               String?   @db.VarChar(50) @map("mode_paiement")
@@ -533,6 +531,8 @@ model Confrere {
   totalArticles              Int       @default(0) @map("total_articles")
   totalQuantite              Int       @default(0) @map("total_quantite")
   valeurEstimee              Decimal   @default(0) @db.Decimal(12, 2) @map("valeur_estimee")
+  contreValeurEstimee        Decimal   @default(0) @db.Decimal(12, 2) @map("contre_valeur_estimee")
+  differenceRemise           Decimal   @default(0) @db.Decimal(12, 2) @map("difference_remise")
   actif                      Boolean   @default(true)
   creePar                    String?   @db.VarChar(255) @map("cree_par")
   modifiePar                 String?   @db.VarChar(255) @map("modifie_par")
@@ -544,6 +544,7 @@ model Confrere {
   etablissementSource      Etablissement? @relation("ConfrereSource", fields: [etablissementSourceId], references: [id])
   etablissementDestination Etablissement? @relation("ConfrereDestination", fields: [etablissementDestinationId], references: [id])
   lignes                   LigneConfrere[]
+  contreOffres             ContreOffreConfrere[]
 
   @@map("confreres")
   @@unique([projetUid, reference], name: "idx_confreres_projet_reference")
@@ -572,6 +573,29 @@ model LigneConfrere {
 
   @@map("lignes_confrere")
   @@index([confrereId], name: "idx_lignes_confrere_confrere_id")
+}
+
+// ========================================
+// CONTRE-OFFRES DE CONFRÈRE (produits proposés en échange)
+// ========================================
+model ContreOffreConfrere {
+  id             String    @id @default(uuid()) @db.Uuid
+  confrereId     String    @db.Uuid @map("confrere_id")
+  produitNom     String    @db.VarChar(255) @map("produit_nom")
+  produitCode    String?   @db.VarChar(100) @map("produit_code")
+  numeroLot      String?   @db.VarChar(100) @map("numero_lot")
+  quantite       Int
+  prixUnit       Decimal   @db.Decimal(12, 2) @map("prix_unitaire")
+  total          Decimal   @db.Decimal(12, 2)
+  dateExpiration DateTime? @map("date_expiration")
+  note           String?   @db.Text
+  creePar        String?   @db.VarChar(255) @map("cree_par")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  confrere Confrere @relation(fields: [confrereId], references: [id], onDelete: Cascade)
+
+  @@map("contre_offres_confrere")
+  @@index([confrereId], name: "idx_contre_offres_confrere_id")
 }
 
 // ========================================

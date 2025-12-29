@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { FullPageLoader } from "@/components/ui/loading-state";
 
 export type UserProfile = {
   id: string;
@@ -182,11 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   if (!shouldRenderChildren()) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   return (

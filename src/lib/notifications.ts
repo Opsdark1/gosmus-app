@@ -8,7 +8,11 @@ type NotificationType =
   | "credit_rappel"
   | "trial_reminder"
   | "subscription_reminder"
-  | "paiement_du";
+  | "paiement_du"
+  | "echange_recu"
+  | "contre_offre_recue"
+  | "echange_termine"
+  | "echange_refuse";
 
 interface CreateNotificationParams {
   projetUid: string;
